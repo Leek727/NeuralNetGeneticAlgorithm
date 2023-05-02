@@ -4,11 +4,13 @@ import math
 import numpy as np
 import copy
 import matplotlib.pyplot as plt
+from naturalenvironment import find_fitness
 
-POPULATIONSIZE = 200
+POPULATIONSIZE = 1000
 CROSSOVERRATE = 2  # num neurons to change
-MUTATIONRATE = .2  # x percent mutation chance per weight or bias
-STRUCTURE = [1, 16,16, 1]
+MUTATIONCHANCE = .8
+MUTATIONRATE = .8 # x percent mutation chance per weight or bias+POPULATIONSIZE*2
+STRUCTURE = [4, 10, 10, 2]
 
 best = Individual()
 best.generate_layers(STRUCTURE)
@@ -19,14 +21,18 @@ for individuals in range(POPULATIONSIZE):
     population.append(indiv)
 
 
-def find_fitness(individual):
-    # try to estimate sine
-    fitness = 0
-    for i in range(100):
-        test = random.random()*2*math.pi
-        fitness += abs(math.sin(test) - individual.inference([test]))[0]
+def afind_fitness(individual):
+    # FITNESS AND SELECTION
+    fitness_values =[]
+    for indiv in population:
+        # try to estimate sine
+        fitness = 0
+        for i in range(100):
+            test = random.random()*2*math.pi
+            fitness += abs(math.sin(test) - indiv.inference([test]))[0]
+        fitness_values.append(fitness)
 
-    return fitness
+    return fitness_values
 
 
 def mutate(new_layers):
@@ -42,17 +48,27 @@ def mutate(new_layers):
 
 # generation loop
 gen = 0
-for i in range(10):
-    fitness_values = []
+best0 = Individual()
+best0.generate_layers(STRUCTURE)
 
-    # FITNESS AND SELECTION
-    for indiv in population:
-        fitness_values.append(find_fitness(indiv))
+best1 = Individual()
+best1.generate_layers(STRUCTURE)
 
-    fittest = [x for _, x in sorted(zip(fitness_values, population))]
-    best0 = fittest[0]
-    best1 = fittest[1]
+best0_score = float("inf")
+best1_score = float("inf")
+for i in range(100000):
 
+    fitness_values = find_fitness(population)
+    for i, score in enumerate(fitness_values):
+        if score < best0_score:
+            best0.set_layers(population[i].get_layers())
+            best0_score = score
+
+        elif score < best1_score:
+            best1.set_layers(population[i].get_layers())
+            best1_score = score
+
+    
     # CROSSOVER
     new_layers = best0.get_layers()
     randstart = len(new_layers)-CROSSOVERRATE
@@ -63,14 +79,20 @@ for i in range(10):
         new_layers[cross][0][0][rweight_index] = best1.get_layers()[
             cross][0][0][rweight_index]
 
-    best.set_layers(new_layers)
+    for player in population:
+        player.set_layers(new_layers)
     # print(best0.get_layers())
     # MUTATION AND GENERATE OFFSPRING
-    for indiv in population:
-        indiv.set_layers(mutate(copy.deepcopy(new_layers)))
+    for ind, indiv in enumerate(population):
+        if random.random() < MUTATIONCHANCE and ind != 0:
+            indiv.set_layers(mutate(copy.deepcopy(new_layers)))
+        else:
+            indiv.set_layers(copy.deepcopy(new_layers))
 
     print(sorted(fitness_values)[0])
 
+print(best.get_layers())
+"""
 x0 = []
 y0 = []
 y1 = []
@@ -83,4 +105,4 @@ plt.plot(x0, y0, 'r')
 plt.plot(x0, y1, 'b')
 plt.axis('scaled')
 #plt.ylim([0, 30])
-plt.show()
+plt.show()"""
